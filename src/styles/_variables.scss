@@ -1,2 +1,4 @@
-// Importar desde el artifact design_tokens
-@import './design-tokens';
+@forward './design-tokens'; // si quieres re-exportar
+$font-primary: 'Poppins', sans-serif !default;
+$transition-base: 0.25s ease !default;
+$spacing-4: 1rem !default;

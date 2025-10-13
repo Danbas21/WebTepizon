@@ -1,19 +1,262 @@
-rules_version = '2';
+// ===============================================
+// FIRESTORE SECURITY RULES
+// File: firestore.rules
+// ===============================================
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    
+    // ============= HELPER FUNCTIONS =============
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+    
+    // Check if email is verified
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+    
+    // Validate money object
+    function isValidMoney(money) {
+      return money.keys().hasAll(['amount', 'currency']) &&
+             money.amount is number &&
+             money.amount >= 0 &&
+             money.currency == 'MXN';
+    }
+    
+    // Validate timestamp
+    function isValidTimestamp(ts) {
+      return ts is timestamp;
+    }
+    
+    // Check if data hasn't changed
+    function unchangedFields(fields) {
+      return fields.toSet().difference(request.resource.data.diff(resource.data).affectedKeys().toSet()).size() == fields.size();
+    }
+    
+    // ============= USERS COLLECTION =============
+    
+    match /users/{userId} {
+      // Anyone can read public user data
+      allow read: if true;
+      
+      // Users can create their own document during registration
+      allow create: if isOwner(userId) &&
+                       request.resource.data.keys().hasAll([
+                         'id', 'email', 'firstName', 'lastName', 
+                         'preferences', 'role', 'createdAt', 'updatedAt'
+                       ]) &&
+                       request.resource.data.role == 'USER' &&
+                       request.resource.data.id == userId &&
+                       request.resource.data.email == request.auth.token.email;
+      
+      // Users can update their own data (except role)
+      allow update: if isOwner(userId) &&
+                       unchangedFields(['id', 'email', 'role', 'createdAt']);
+      
+      // Users can delete their own account
+      allow delete: if isOwner(userId);
+      
+      // Admins can do anything
+      allow read, write: if isAdmin();
+      
+      // ===== SUBCOLLECTION: ADDRESSES =====
+      match /addresses/{addressId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) &&
+                        request.resource.data.keys().hasAll([
+                          'id', 'street', 'city', 'state', 
+                          'postalCode', 'country', 'createdAt'
+                        ]) &&
+                        request.resource.data.country == 'MX';
+      }
+    }
+    
+    // ============= CATEGORIES COLLECTION =============
+    
+    match /categories/{categoryId} {
+      // Anyone can read active categories
+      allow read: if resource.data.isActive == true;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+    
+    // ============= PRODUCTS COLLECTION =============
+    
+    match /products/{productId} {
+      // Anyone can read active products
+      allow read: if resource.data.isActive == true;
+      
+      // Admins can read all products
+      allow read: if isAdmin();
+      
+      // Only admins can create products
+      allow create: if isAdmin() &&
+                       request.resource.data.keys().hasAll([
+                         'id', 'name', 'slug', 'price', 'categoryId',
+                         'stock', 'sku', 'isActive', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidMoney(request.resource.data.price) &&
+                       request.resource.data.stock >= 0;
+      
+      // Only admins can update products
+      allow update: if isAdmin() &&
+                       unchangedFields(['id', 'createdAt']);
+      
+      // Only admins can delete products
+      allow delete: if isAdmin();
+      
+      // ===== SUBCOLLECTION: REVIEWS =====
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow read: if true;
+        
+        // Authenticated users can create reviews
+        allow create: if isAuthenticated() &&
+                         request.resource.data.userId == request.auth.uid &&
+                         request.resource.data.rating >= 1 &&
+                         request.resource.data.rating <= 5;
+        
+        // Users can update/delete their own reviews
+        allow update, delete: if isAuthenticated() &&
+                                 resource.data.userId == request.auth.uid;
+        
+        // Admins can delete any review
+        allow delete: if isAdmin();
+      }
+    }
+    
+    // ============= CARTS COLLECTION =============
+    
+    match /carts/{cartId} {
+      // Users can read their own cart
+      allow read: if isOwner(resource.data.userId) ||
+                     (resource.data.sessionId == request.auth.uid);
+      
+      // Users can create their own cart
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.userId == request.auth.uid ||
+                        request.resource.data.sessionId == request.auth.uid) &&
+                       isValidMoney(request.resource.data.subtotal) &&
+                       isValidMoney(request.resource.data.total);
+      
+      // Users can update their own cart
+      allow update: if isAuthenticated() &&
+                       (resource.data.userId == request.auth.uid ||
+                        resource.data.sessionId == request.auth.uid) &&
+                       unchangedFields(['id', 'createdAt']);
+      
+      // Users can delete their own cart
+      allow delete: if isAuthenticated() &&
+                       (resource.data.userId == request.auth.uid ||
+                        resource.data.sessionId == request.auth.uid);
+    }
+    
+    // ============= COUPONS COLLECTION =============
+    
+    match /coupons/{couponId} {
+      // Users can read active coupons only
+      allow read: if resource.data.isActive == true &&
+                     resource.data.validFrom <= request.time &&
+                     resource.data.validUntil >= request.time;
+      
+      // Only admins can write coupons
+      allow write: if isAdmin();
+    }
+    
+    // ============= WISHLISTS COLLECTION =============
+    
+    match /wishlists/{userId} {
+      // Users can read their own wishlist
+      allow read: if isOwner(userId);
+      
+      // Users can write their own wishlist
+      allow write: if isOwner(userId) &&
+                      request.resource.data.userId == userId;
+    }
+    
+    // ============= ORDERS COLLECTION =============
+    
+    match /orders/{orderId} {
+      // Users can read their own orders
+      allow read: if isOwner(resource.data.userId);
+      
+      // Admins can read all orders
+      allow read: if isAdmin();
+      
+      // Users can create orders (validated by Cloud Function)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       isValidMoney(request.resource.data.total) &&
+                       request.resource.data.items.size() > 0 &&
+                       request.resource.data.status == 'PENDING_PAYMENT';
+      
+      // Users can update specific fields of their orders
+      allow update: if isOwner(resource.data.userId) &&
+                       unchangedFields([
+                         'id', 'orderNumber', 'userId', 'items',
+                         'subtotal', 'total', 'createdAt'
+                       ]);
+      
+      // Admins can update any order
+      allow update: if isAdmin();
+      
+      // Users can delete their pending orders only
+      allow delete: if isOwner(resource.data.userId) &&
+                       resource.data.status == 'PENDING_PAYMENT';
+      
+      // Admins can delete any order
+      allow delete: if isAdmin();
+    }
+    
+    // ============= NOTIFICATIONS COLLECTION =============
+    
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isOwner(resource.data.userId);
+      
+      // Users can update isRead status only
+      allow update: if isOwner(resource.data.userId) &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['isRead', 'updatedAt']);
+      
+      // Only system/admin can create notifications
+      allow create: if isAdmin();
+      
+      // Users can delete their own notifications
+      allow delete: if isOwner(resource.data.userId);
+    }
+    
+    // ============= ANALYTICS COLLECTION =============
+    
+    match /analytics/{document=**} {
+      // Only admins can read analytics
+      allow read: if isAdmin();
+      
+      // Only system can write analytics
+      allow write: if false;  // Written only by Cloud Functions
+    }
+    
+    // ============= DEFAULT DENY =============
+    
+    // Deny all other access
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 11, 11);
+      allow read, write: if false;
     }
   }
 }

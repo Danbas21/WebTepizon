@@ -1,32 +1,53 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+// ===============================================
+// CLOUD FUNCTIONS V2 - INDEX (Sin beforeCreate)
+// File: functions/src/index.ts
+// ===============================================
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
-import * as logger from "firebase-functions/logger";
+import * as admin from 'firebase-admin';
+import { setGlobalOptions } from 'firebase-functions/v2';
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+// Initialize Firebase Admin
+admin.initializeApp();
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// Set global options for v2 functions
+setGlobalOptions({
+  region: 'us-central1',
+  maxInstances: 10,
+  timeoutSeconds: 60,
+  memory: '256MiB',
+});
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// ============= EXPORT ALL FUNCTIONS =============
+
+// Authentication (v1 API para triggers no bloqueantes)
+export { onUserCreated, updateLastLogin } from './auth/onUserCreated';
+
+
+// Payments (Stripe) - v2 API
+export {
+  createPaymentIntent,
+  handleStripeWebhook,
+  processRefund
+} from './payments/createPaymentIntent';
+
+// Orders - v2 API
+export {
+  onOrderCreated
+} from './orders/onOrderCreated';
+
+export {
+  updateOrderStatus,
+  scheduleOrderUpdates
+} from './orders/updateOrderStatus';
+
+// Products - v2 API
+export { onProductUpdated } from './products/onProductUpdated';
+
+// Cart - v2 API
+export { cleanupExpiredCarts } from './carts/cleanupExpiredCarts';
+
+// Notifications - v2 API
+export { sendNotification } from './notifications/sendNotification';
+
+// Analytics - v2 API
+export { trackProductView } from './analytics/trackProductView';
