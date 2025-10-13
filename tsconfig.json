@@ -1,8 +1,7 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "outDir": "./dist/out-tsc",
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -13,7 +12,22 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "dom"],
+    "paths": {
+      "#env/*": ["./src/environments/*"],
+
+
+      
+      "#core/*": ["./src/app/core/*"],
+      "#shared/*": ["./src/app/shared/*"],
+      "#app/*": ["./src/app/*"],
+      "#features/*": ["./src/app/features/*"]
+    },
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": false
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
@@ -24,11 +38,7 @@
   },
   "files": [],
   "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    }
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.spec.json" }
   ]
 }

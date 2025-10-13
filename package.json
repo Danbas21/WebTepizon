@@ -1,6 +1,14 @@
 {
   "name": "app-tepizon",
   "version": "0.0.0",
+  "type": "module",
+  "imports": {
+    "#app/*": "./src/app/*",
+    "#core/*": "./src/app/core/*",
+    "#shared/*": "./src/app/shared/*",
+    "#features/*": "./src/app/features/*",
+    "#env/*": "./src/environments/*"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
