@@ -7,6 +7,21 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 
+interface WishlistItem {
+  productId: string;
+  priceDropNotification: boolean;
+}
+
+interface Product {
+  stock: number;
+  name: string;
+  images: { url: string }[];
+  price: { amount: number };
+  lowStockThreshold: number;
+  categoryId: string;
+  slug: string;
+}
+
 /**
  * Triggered when a product is updated
  * Handles low stock notifications and price drop alerts
@@ -26,12 +41,12 @@ export const onProductUpdated = onDocumentUpdated(
       // Check for low stock
       if (afterData.stock <= afterData.lowStockThreshold &&
         beforeData.stock > afterData.lowStockThreshold) {
-        await handleLowStock(productId, afterData as { stock: number; name: string; images: { url: string; }[] });
+        await handleLowStock(productId, afterData as Product);
       }
 
       // Check for price drop
       if (afterData.price.amount < beforeData.price.amount) {
-        await handlePriceDrop(productId, afterData as { name: string; slug: string; price: { amount: number; }; images: { url: string; }[] }, beforeData.price.amount);
+        await handlePriceDrop(productId, afterData as Product, beforeData.price.amount);
       }
 
       // Update category product count (denormalized data)
@@ -47,8 +62,11 @@ export const onProductUpdated = onDocumentUpdated(
 /**
  * Handle low stock alert
  */
-async function handleLowStock(productId: string, product: { stock: number; name: string; images: { url: string }[] }): Promise<void> {
-  functions.logger.warn(`Low stock alert for product ${productId}: ${product.stock} units`);
+async function handleLowStock(productId: string, product: Product): Promise<void> {
+
+  functions.logger.warn(
+    `Low stock alert for product ${productId}: ${product.stock} units`
+  );
 
   // Send notification to admins
   const adminsSnapshot = await admin.firestore()
@@ -59,7 +77,12 @@ async function handleLowStock(productId: string, product: { stock: number; name:
   const batch = admin.firestore().batch();
 
   for (const adminDoc of adminsSnapshot.docs) {
-    const notificationRef = admin.firestore().collection('notifications').doc();
+    const notificationRef = admin
+      .firestore()
+      .collection('notifications')
+      .doc();
+
+
     batch.set(notificationRef, {
       userId: adminDoc.id,
       type: 'BACK_IN_STOCK',
@@ -94,7 +117,7 @@ async function handlePriceDrop(
   for (const wishlistDoc of wishlistsSnapshot.docs) {
     const wishlist = wishlistDoc.data();
     const wishlistItem = wishlist.items?.find(
-      (item: any) => item.productId === productId && item.priceDropNotification
+      (item: WishlistItem) => item.productId === productId && item.priceDropNotification
     );
 
     if (wishlistItem) {

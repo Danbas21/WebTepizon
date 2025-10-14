@@ -1,17 +1,8 @@
-// ===============================================
-// AUTHENTICATION FUNCTIONS (Versión Correcta)
-// File: functions/src/auth/onUserCreated.ts
-// ===============================================
-
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import * as nodemailer from 'nodemailer';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
-/**
- * Triggered when a new user is created in Firebase Auth
- * Creates a corresponding user document in Firestore
- * NO requiere GCIP - funciona automáticamente con v1 API
- */
 export const onUserCreated = functions.auth.user().onCreate(async (user) => {
   const { uid, email, displayName, photoURL } = user;
 
@@ -157,7 +148,7 @@ async function sendWelcomeEmail(
 // UPDATE LAST LOGIN (v2 API - Callable Function)
 // ===============================================
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+
 
 /**
  * Callable function to update user's last login timestamp

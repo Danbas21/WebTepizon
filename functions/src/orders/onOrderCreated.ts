@@ -7,6 +7,18 @@ import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 
+
+interface Order {
+  userId: string;
+  items: {
+    productId: string;
+    quantity: number;
+    productImage: string;
+  }[];
+  status: string;
+}
+
+
 /**
  * Triggered when a new order is created
  * Generates order number and initializes status
@@ -97,7 +109,7 @@ async function generateOrderNumber(): Promise<string> {
 /**
  * Check if all items are in stock
  */
-async function checkStockAvailability(items: { productId: string; quantity: number }[]): Promise<boolean> {
+async function checkStockAvailability(items: Order['items']): Promise<boolean> {
   for (const item of items) {
     const productDoc = await admin.firestore()
       .collection('products')

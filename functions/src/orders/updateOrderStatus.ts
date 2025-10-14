@@ -9,7 +9,7 @@
 import * as functions from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 interface UpdateOrderStatusRequest {
   orderId: string;
   status: string;
@@ -135,7 +135,7 @@ export const updateOrderStatus = onCall<UpdateOrderStatusRequest>(
 // File: functions/src/orders/scheduleOrderUpdates.ts
 // ===============================================
 
-import { onSchedule } from 'firebase-functions/v2/scheduler';
+
 
 /**
  * Scheduled function that runs every hour
