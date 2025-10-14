@@ -1,318 +1,595 @@
-// src/app/features/auth/infrastructure/adapters/firebase-auth.adapter.ts
+/**
+ * Firebase Auth Adapter
+ * 
+ * Implementación del adaptador para Firebase Authentication v10+.
+ * Maneja la comunicación con Firebase y convierte los datos a modelos de dominio.
+ * 
+ * @pattern Adapter (Hexagonal Architecture)
+ * @infrastructure Firebase
+ */
 
 import { Injectable, inject } from '@angular/core';
 import {
-    Auth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut,
-    updateProfile,
-    sendPasswordResetEmail,
-    updateEmail,
-    updatePassword,
-    GoogleAuthProvider,
-    FacebookAuthProvider,
-    signInWithPopup,
-    onAuthStateChanged,
-    User as FirebaseUser,
-    UserCredential,
+  Auth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  updateProfile as firebaseUpdateProfile,
+  sendEmailVerification as firebaseSendEmailVerification,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  User as FirebaseUser,
+  UserCredential,
 } from '@angular/fire/auth';
-import { Observable, from, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
-import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  Firestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  serverTimestamp,
+} from '@angular/fire/firestore';
+import { BehaviorSubject, Observable, from, of } from 'rxjs';
+import { switchMap, map, catchError, tap } from 'rxjs/operators';
 
-// Domain
-import { User, UserRole } from '../../domain/entities/user.entity';
-import { AuthPort } from '../../domain/ports/auth.port';
-import { AuthError } from '../../domain/errors/auth.errors';
+import { User, UserRole, AuthProvider, createUser } from '../../domain/models/user.model';
+import { AuthToken, createAuthToken, isTokenExpired } from '../../domain/models/auth-token.model';
+import { createAuthError, AuthError, AuthErrorCode } from '../../domain/models/auth-error.model';
+import {
+  LoginCredentials,
+  RegisterData,
+  AuthState,
+} from '../../domain/ports/auth.repository.port';
 
 /**
- * Adapter para Firebase Authentication
- * Implementa el port AuthPort definido en el dominio
- * Convierte entre tipos de Firebase y tipos del dominio
+ * Adapter de Firebase Authentication
+ * 
+ * Responsabilidades:
+ * - Autenticación con email/password
+ * - Autenticación con Google (redirect)
+ * - Gestión de tokens (almacenamiento manual)
+ * - Sincronización con Firestore (colección users)
+ * - Estado reactivo de autenticación
  */
 @Injectable({
-    providedIn: 'root',
+  providedIn: 'root',
 })
-export class FirebaseAuthAdapter implements AuthPort {
-    private readonly auth = inject(Auth);
+export class FirebaseAuthAdapter {
+  private readonly auth = inject(Auth);
+  private readonly firestore = inject(Firestore);
 
-    /**
-     * Observable del usuario autenticado actual
-     * Se actualiza automáticamente cuando cambia el estado de auth
-     */
-    readonly currentUser$ = new Observable<User | null>((observer) => {
-        return onAuthStateChanged(this.auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                try {
-                    const user = await this.mapFirebaseUserToDomain(firebaseUser);
-                    observer.next(user);
-                } catch (error) {
-                    observer.error(this.handleAuthError(error));
-                }
-            } else {
-                observer.next(null);
-            }
+  // Estado reactivo interno
+  private readonly authStateSubject = new BehaviorSubject<AuthState>({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: true,
+  });
+
+  // Observable público del estado
+  public readonly authState$ = this.authStateSubject.asObservable();
+
+  // Provider de Google
+  private readonly googleProvider = new GoogleAuthProvider();
+
+  constructor() {
+    this.initializeAuthStateListener();
+  }
+
+  /**
+   * Inicializa el listener de cambios de autenticación de Firebase
+   * Sincroniza el estado local con Firebase
+   */
+  private initializeAuthStateListener(): void {
+    onAuthStateChanged(
+      this.auth,
+      async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            // Usuario autenticado - obtener datos completos
+            const user = await this.getUserFromFirestore(firebaseUser.uid);
+            const token = await this.extractToken(firebaseUser);
+
+            // Actualizar último login
+            await this.updateLastLogin(firebaseUser.uid);
+
+            this.authStateSubject.next({
+              user,
+              token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            // Guardar token en localStorage
+            this.saveTokenToStorage(token);
+          } else {
+            // Usuario no autenticado - limpiar estado
+            this.authStateSubject.next({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
+
+            this.clearTokenFromStorage();
+          }
+        } catch (error) {
+          console.error('Error en auth state listener:', error);
+          this.authStateSubject.next({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+        }
+      },
+      (error) => {
+        console.error('Error en auth state listener:', error);
+        this.authStateSubject.next({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
         });
+      }
+    );
+  }
+
+  /**
+   * Login con email y contraseña
+   */
+  async login(credentials: LoginCredentials): Promise<User> {
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        this.auth,
+        credentials.email,
+        credentials.password
+      );
+
+      return await this.handleAuthSuccess(userCredential);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Registro de nuevo usuario
+   */
+  async register(data: RegisterData): Promise<User> {
+    try {
+      // 1. Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        this.auth,
+        data.email,
+        data.password
+      );
+
+      // 2. Actualizar perfil en Firebase Auth
+      await firebaseUpdateProfile(userCredential.user, {
+        displayName: `${data.firstName} ${data.lastName}`,
+      });
+
+      // 3. Crear documento en Firestore
+      const user = createUser({
+        uid: userCredential.user.uid,
+        email: data.email,
+        emailVerified: false,
+        role: UserRole.USER,
+        provider: AuthProvider.EMAIL,
+        profile: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          language: 'es',
+          theme: 'light',
+        },
+        addresses: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true,
+        wishlistCount: 0,
+        ordersCount: 0,
+      });
+
+      await this.saveUserToFirestore(user);
+
+      // 4. Enviar email de verificación
+      await firebaseSendEmailVerification(userCredential.user);
+
+      return user;
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Login con Google (redirect)
+   */
+  async loginWithGoogle(): Promise<void> {
+    try {
+      // Configurar provider
+      this.googleProvider.setCustomParameters({
+        prompt: 'select_account',
+      });
+
+      // Iniciar redirect
+      await signInWithRedirect(this.auth, this.googleProvider);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Obtiene el resultado del redirect de Google
+   */
+  async getRedirectResult(): Promise<User | null> {
+    try {
+      const result = await getRedirectResult(this.auth);
+
+      if (!result) {
+        return null;
+      }
+
+      // Verificar si el usuario ya existe en Firestore
+      const existingUser = await this.getUserFromFirestore(result.user.uid).catch(() => null);
+
+      if (existingUser) {
+        // Usuario existente - actualizar último login
+        await this.updateLastLogin(result.user.uid);
+        return existingUser;
+      }
+
+      // Nuevo usuario - crear en Firestore
+      const names = this.parseGoogleDisplayName(result.user.displayName || '');
+      const user = createUser({
+        uid: result.user.uid,
+        email: result.user.email || '',
+        emailVerified: result.user.emailVerified,
+        role: UserRole.USER,
+        provider: AuthProvider.GOOGLE,
+        profile: {
+          firstName: names.firstName,
+          lastName: names.lastName,
+          avatar: result.user.photoURL || undefined,
+          language: 'es',
+          theme: 'light',
+        },
+        addresses: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true,
+        wishlistCount: 0,
+        ordersCount: 0,
+      });
+
+      await this.saveUserToFirestore(user);
+
+      return user;
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Cierra sesión
+   */
+  async logout(): Promise<void> {
+    try {
+      await signOut(this.auth);
+      this.clearTokenFromStorage();
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Obtiene el usuario actual
+   */
+  async getCurrentUser(): Promise<User | null> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) {
+      return null;
+    }
+
+    try {
+      return await this.getUserFromFirestore(firebaseUser.uid);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Obtiene el token actual
+   */
+  async getToken(forceRefresh = false): Promise<AuthToken | null> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) {
+      return null;
+    }
+
+    try {
+      // Si no forzamos refresh, intentar obtener del storage
+      if (!forceRefresh) {
+        const storedToken = this.getTokenFromStorage();
+        if (storedToken && !isTokenExpired(storedToken)) {
+          return storedToken;
+        }
+      }
+
+      // Obtener nuevo token de Firebase
+      const token = await this.extractToken(firebaseUser);
+      this.saveTokenToStorage(token);
+      return token;
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Renueva el token
+   */
+  async refreshToken(): Promise<AuthToken> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) {
+      throw new AuthError({
+        code: AuthErrorCode.UNAUTHORIZED,
+        message: 'No hay usuario autenticado',
+        timestamp: new Date(),
+      });
+    }
+
+    try {
+      const token = await this.extractToken(firebaseUser, true);
+      this.saveTokenToStorage(token);
+      return token;
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Envía email de verificación
+   */
+  async sendEmailVerification(): Promise<void> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) {
+      throw new AuthError({
+        code: AuthErrorCode.UNAUTHORIZED,
+        message: 'No hay usuario autenticado',
+        timestamp: new Date(),
+      });
+    }
+
+    try {
+      await firebaseSendEmailVerification(firebaseUser);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Envía email para resetear contraseña
+   */
+  async sendPasswordResetEmail(email: string): Promise<void> {
+    try {
+      await firebaseSendPasswordResetEmail(this.auth, email);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Actualiza el perfil del usuario
+   */
+  async updateProfile(updates: Partial<User['profile']>): Promise<User> {
+    const firebaseUser = this.auth.currentUser;
+    if (!firebaseUser) {
+      throw new AuthError({
+        code: AuthErrorCode.UNAUTHORIZED,
+        message: 'No hay usuario autenticado',
+        timestamp: new Date(),
+      });
+    }
+
+    try {
+      // Obtener usuario actual de Firestore
+      const currentUser = await this.getUserFromFirestore(firebaseUser.uid);
+
+      // Actualizar en Firestore
+      const userRef = doc(this.firestore, 'users', firebaseUser.uid);
+      await updateDoc(userRef, {
+        profile: { ...currentUser.profile, ...updates },
+        updatedAt: serverTimestamp(),
+      });
+
+      // Actualizar displayName en Firebase Auth si cambió firstName o lastName
+      if (updates.firstName || updates.lastName) {
+        const displayName = `${updates.firstName || currentUser.profile.firstName} ${
+          updates.lastName || currentUser.profile.lastName
+        }`;
+        await firebaseUpdateProfile(firebaseUser, { displayName });
+      }
+
+      // Retornar usuario actualizado
+      return await this.getUserFromFirestore(firebaseUser.uid);
+    } catch (error) {
+      throw createAuthError(error);
+    }
+  }
+
+  /**
+   * Verifica si hay un usuario autenticado (síncrono)
+   */
+  isAuthenticated(): boolean {
+    return this.authStateSubject.value.isAuthenticated;
+  }
+
+  // ==================== MÉTODOS PRIVADOS ====================
+
+  /**
+   * Maneja el éxito de autenticación
+   */
+  private async handleAuthSuccess(userCredential: UserCredential): Promise<User> {
+    const user = await this.getUserFromFirestore(userCredential.user.uid);
+    const token = await this.extractToken(userCredential.user);
+
+    this.authStateSubject.next({
+      user,
+      token,
+      isAuthenticated: true,
+      isLoading: false,
     });
 
-    /**
-     * Signal del usuario actual (Angular 20)
-     * Para uso directo en templates con mayor performance
-     */
-    readonly currentUser = toSignal(this.currentUser$, { initialValue: null });
+    this.saveTokenToStorage(token);
 
-    /**
-     * Login con email y password
-     */
-    login(email: string, password: string): Observable<User> {
-        return from(signInWithEmailAndPassword(this.auth, email, password)).pipe(
-            map((credential) => this.mapCredentialToDomain(credential)),
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+    return user;
+  }
+
+  /**
+   * Extrae el token de un usuario de Firebase
+   */
+  private async extractToken(firebaseUser: FirebaseUser, forceRefresh = false): Promise<AuthToken> {
+    const idToken = await firebaseUser.getIdToken(forceRefresh);
+    const idTokenResult = await firebaseUser.getIdTokenResult(forceRefresh);
+    const refreshToken = firebaseUser.refreshToken;
+
+    // Calcular tiempo de expiración
+    const expirationTime = new Date(idTokenResult.expirationTime).getTime();
+    const issuedAtTime = new Date(idTokenResult.issuedAtTime).getTime();
+    const expiresIn = Math.floor((expirationTime - issuedAtTime) / 1000);
+
+    return createAuthToken(idToken, refreshToken, expiresIn);
+  }
+
+  /**
+   * Obtiene un usuario de Firestore
+   */
+  private async getUserFromFirestore(uid: string): Promise<User> {
+    const userRef = doc(this.firestore, 'users', uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      throw new AuthError({
+        code: AuthErrorCode.USER_NOT_FOUND,
+        message: 'Usuario no encontrado en la base de datos',
+        timestamp: new Date(),
+      });
     }
 
-    /**
-     * Registro con email y password
-     */
-    register(email: string, password: string, displayName: string): Observable<User> {
-        return from(
-            createUserWithEmailAndPassword(this.auth, email, password)
-        ).pipe(
-            map(async (credential) => {
-                // Actualizar profile con displayName
-                if (credential.user) {
-                    await updateProfile(credential.user, { displayName });
-                    await credential.user.reload();
-                }
-                return this.mapCredentialToDomain(credential);
-            }),
-            map((userPromise) => from(userPromise)),
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+    const data = userSnap.data();
+
+    return createUser({
+      uid: userSnap.id,
+      email: data['email'],
+      emailVerified: data['emailVerified'],
+      role: data['role'] as UserRole,
+      profile: data['profile'],
+      addresses: data['addresses'] || [],
+      provider: data['provider'] as AuthProvider,
+      createdAt: data['createdAt']?.toDate() || new Date(),
+      updatedAt: data['updatedAt']?.toDate() || new Date(),
+      lastLoginAt: data['lastLoginAt']?.toDate(),
+      isActive: data['isActive'],
+      wishlistCount: data['wishlistCount'] || 0,
+      ordersCount: data['ordersCount'] || 0,
+    });
+  }
+
+  /**
+   * Guarda un usuario en Firestore
+   */
+  private async saveUserToFirestore(user: User): Promise<void> {
+    const userRef = doc(this.firestore, 'users', user.uid);
+    await setDoc(userRef, {
+      email: user.email,
+      emailVerified: user.emailVerified,
+      role: user.role,
+      profile: user.profile,
+      addresses: user.addresses,
+      provider: user.provider,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      isActive: user.isActive,
+      wishlistCount: user.wishlistCount,
+      ordersCount: user.ordersCount,
+    });
+  }
+
+  /**
+   * Actualiza el último login del usuario
+   */
+  private async updateLastLogin(uid: string): Promise<void> {
+    try {
+      const userRef = doc(this.firestore, 'users', uid);
+      await updateDoc(userRef, {
+        lastLoginAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error actualizando último login:', error);
     }
+  }
 
-    /**
-     * Login con Google OAuth
-     */
-    loginWithGoogle(): Observable<User> {
-        const provider = new GoogleAuthProvider();
-        provider.addScope('profile');
-        provider.addScope('email');
-
-        return from(signInWithPopup(this.auth, provider)).pipe(
-            map((credential) => this.mapCredentialToDomain(credential)),
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+  /**
+   * Parsea el displayName de Google en firstName y lastName
+   */
+  private parseGoogleDisplayName(displayName: string): { firstName: string; lastName: string } {
+    const parts = displayName.trim().split(' ');
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: '' };
     }
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(' ');
+    return { firstName, lastName };
+  }
 
-    /**
-     * Login con Facebook OAuth
-     */
-    loginWithFacebook(): Observable<User> {
-        const provider = new FacebookAuthProvider();
-        provider.addScope('email');
-        provider.addScope('public_profile');
-
-        return from(signInWithPopup(this.auth, provider)).pipe(
-            map((credential) => this.mapCredentialToDomain(credential)),
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+  /**
+   * Guarda el token en localStorage
+   */
+  private saveTokenToStorage(token: AuthToken): void {
+    try {
+      localStorage.setItem('auth_token', JSON.stringify({
+        idToken: token.idToken,
+        refreshToken: token.refreshToken,
+        expiresAt: token.expiresAt.toISOString(),
+        issuedAt: token.issuedAt.toISOString(),
+      }));
+    } catch (error) {
+      console.error('Error guardando token:', error);
     }
+  }
 
-    /**
-     * Logout
-     */
-    logout(): Observable<void> {
-        return from(signOut(this.auth)).pipe(
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+  /**
+   * Obtiene el token de localStorage
+   */
+  private getTokenFromStorage(): AuthToken | null {
+    try {
+      const stored = localStorage.getItem('auth_token');
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      return {
+        idToken: parsed.idToken,
+        refreshToken: parsed.refreshToken,
+        expiresAt: new Date(parsed.expiresAt),
+        issuedAt: new Date(parsed.issuedAt),
+      };
+    } catch (error) {
+      console.error('Error obteniendo token:', error);
+      return null;
     }
+  }
 
-    /**
-     * Enviar email de recuperación de contraseña
-     */
-    resetPassword(email: string): Observable<void> {
-        return from(sendPasswordResetEmail(this.auth, email)).pipe(
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
+  /**
+   * Limpia el token de localStorage
+   */
+  private clearTokenFromStorage(): void {
+    try {
+      localStorage.removeItem('auth_token');
+    } catch (error) {
+      console.error('Error limpiando token:', error);
     }
-
-    /**
-     * Actualizar perfil de usuario
-     */
-    updateUserProfile(displayName: string, photoURL?: string): Observable<void> {
-        const user = this.auth.currentUser;
-        if (!user) {
-            return throwError(() => new AuthError('NO_USER', 'No authenticated user'));
-        }
-
-        return from(updateProfile(user, { displayName, photoURL })).pipe(
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
-    }
-
-    /**
-     * Actualizar email
-     */
-    updateUserEmail(newEmail: string): Observable<void> {
-        const user = this.auth.currentUser;
-        if (!user) {
-            return throwError(() => new AuthError('NO_USER', 'No authenticated user'));
-        }
-
-        return from(updateEmail(user, newEmail)).pipe(
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
-    }
-
-    /**
-     * Actualizar contraseña
-     */
-    updateUserPassword(newPassword: string): Observable<void> {
-        const user = this.auth.currentUser;
-        if (!user) {
-            return throwError(() => new AuthError('NO_USER', 'No authenticated user'));
-        }
-
-        return from(updatePassword(user, newPassword)).pipe(
-            catchError((error) => throwError(() => this.handleAuthError(error)))
-        );
-    }
-
-    /**
-     * Obtener token de autenticación
-     */
-    async getAuthToken(): Promise<string | null> {
-        const user = this.auth.currentUser;
-        if (!user) return null;
-
-        try {
-            return await user.getIdToken();
-        } catch (error) {
-            console.error('Error getting auth token:', error);
-            return null;
-        }
-    }
-
-    /**
-     * Verificar si el usuario tiene un rol específico
-     */
-    async hasRole(role: UserRole): Promise<boolean> {
-        const user = this.auth.currentUser;
-        if (!user) return false;
-
-        try {
-            const tokenResult = await user.getIdTokenResult();
-            const userRole = tokenResult.claims['role'] as UserRole;
-            return userRole === role;
-        } catch (error) {
-            console.error('Error checking role:', error);
-            return false;
-        }
-    }
-
-    // ========== MÉTODOS PRIVADOS ==========
-
-    /**
-     * Mapea UserCredential de Firebase a entidad User del dominio
-     */
-    private mapCredentialToDomain(credential: UserCredential): User {
-        const firebaseUser = credential.user;
-
-        return {
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            displayName: firebaseUser.displayName || 'Usuario',
-            photoURL: firebaseUser.photoURL || undefined,
-            role: 'USER', // Por defecto, el role se obtiene del token
-            emailVerified: firebaseUser.emailVerified,
-            createdAt: new Date(firebaseUser.metadata.creationTime!),
-            lastLoginAt: new Date(firebaseUser.metadata.lastSignInTime!),
-        };
-    }
-
-    /**
-     * Mapea FirebaseUser a entidad User del dominio
-     * Se usa para el observable de currentUser$
-     */
-    private async mapFirebaseUserToDomain(firebaseUser: FirebaseUser): Promise<User> {
-        // Obtener custom claims (role)
-        const tokenResult = await firebaseUser.getIdTokenResult();
-        const role = (tokenResult.claims['role'] as UserRole) || 'USER';
-
-        return {
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            displayName: firebaseUser.displayName || 'Usuario',
-            photoURL: firebaseUser.photoURL || undefined,
-            role,
-            emailVerified: firebaseUser.emailVerified,
-            createdAt: new Date(firebaseUser.metadata.creationTime!),
-            lastLoginAt: new Date(firebaseUser.metadata.lastSignInTime!),
-        };
-    }
-
-    /**
-     * Maneja errores de Firebase Auth y los convierte a errores del dominio
-     */
-    private handleAuthError(error: any): AuthError {
-        const code = error?.code || 'UNKNOWN';
-        const message = error?.message || 'An unknown error occurred';
-
-        // Mapeo de códigos de error de Firebase a errores del dominio
-        const errorMap: Record<string, { code: string; message: string }> = {
-            'auth/user-not-found': {
-                code: 'USER_NOT_FOUND',
-                message: 'No existe una cuenta con este email',
-            },
-            'auth/wrong-password': {
-                code: 'INVALID_CREDENTIALS',
-                message: 'Email o contraseña incorrectos',
-            },
-            'auth/email-already-in-use': {
-                code: 'EMAIL_IN_USE',
-                message: 'Este email ya está registrado',
-            },
-            'auth/weak-password': {
-                code: 'WEAK_PASSWORD',
-                message: 'La contraseña debe tener al menos 6 caracteres',
-            },
-            'auth/invalid-email': {
-                code: 'INVALID_EMAIL',
-                message: 'Email inválido',
-            },
-            'auth/operation-not-allowed': {
-                code: 'OPERATION_NOT_ALLOWED',
-                message: 'Operación no permitida',
-            },
-            'auth/too-many-requests': {
-                code: 'TOO_MANY_REQUESTS',
-                message: 'Demasiados intentos. Intenta más tarde',
-            },
-            'auth/user-disabled': {
-                code: 'USER_DISABLED',
-                message: 'Esta cuenta ha sido deshabilitada',
-            },
-            'auth/requires-recent-login': {
-                code: 'REQUIRES_RECENT_LOGIN',
-                message: 'Por seguridad, vuelve a iniciar sesión',
-            },
-            'auth/popup-closed-by-user': {
-                code: 'POPUP_CLOSED',
-                message: 'Ventana cerrada. Intenta nuevamente',
-            },
-            'auth/network-request-failed': {
-                code: 'NETWORK_ERROR',
-                message: 'Error de conexión. Verifica tu internet',
-            },
-        };
-
-        const mappedError = errorMap[code] || {
-            code: 'UNKNOWN',
-            message: message,
-        };
-
-        return new AuthError(mappedError.code, mappedError.message, error);
-    }
+  }
 }
