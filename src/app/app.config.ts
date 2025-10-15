@@ -5,7 +5,7 @@ import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideAuth, getAuth } from '@angular/fire/auth';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
 import { provideStorage, getStorage } from '@angular/fire/storage';
-
+import { WISHLIST_PROVIDERS } from './features/wishlist/wishlist.providers';
 import { routes } from './app.routes';
 import { environment } from '#env/environment';
 import { authInterceptor, errorInterceptor } from '#core/interceptors';
@@ -19,9 +19,13 @@ export const appConfig: ApplicationConfig = {
     provideAuth(() => getAuth()),
     provideFirestore(() => getFirestore()),
     provideStorage(() => getStorage()),
+    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideFirestore(() => getFirestore()),
 
 
 
+
+    ...WISHLIST_PROVIDERS,
 
 
 
