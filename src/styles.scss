@@ -1,14 +1,510 @@
-@use 'design-tokens' as *; // buscará en src/ y src/styles/
-@use 'variables' as *;
+// ============================================================================
+// GLOBAL STYLES - TEPIZON PLATFORM
+// ============================================================================
+// Estilos globales, reset CSS y clases utilitarias
+// ============================================================================
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+@import 'tokens';
+@import 'mixins';
+@import 'theme';
 
-body {
-  font-family: $font-primary;
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  transition: background-color $transition-base, color $transition-base;
+// ============================================================================
+// RESET CSS MODERNO
+// ============================================================================
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-.container { width:100%; max-width:1280px; margin:0 auto; padding:0 $spacing-4; }
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border-width:0; }
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-size: $font-size-base;
+  line-height: 1.5;
+  scroll-behavior: smooth;
+}
+
+body {
+  @include font-inter($font-weight-regular);
+  margin: 0;
+  padding: 0;
+  color: $neutral-900;
+  background-color: $neutral-50;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+// ============================================================================
+// TIPOGRAFÍA BASE
+// ============================================================================
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+h1 { @include heading-1; }
+h2 { @include heading-2; }
+h3 { @include heading-3; }
+h4 { @include heading-4; }
+h5 { @include heading-5; }
+h6 { @include heading-6; }
+
+p {
+  margin: 0;
+  @include body-base;
+}
+
+a {
+  color: $primary-1000;
+  text-decoration: none;
+  transition: color $transition-speed-fast $transition-timing;
+  
+  &:hover {
+    color: $primary-700;
+    text-decoration: underline;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $primary-500;
+    outline-offset: 2px;
+    border-radius: radius('xs');
+  }
+}
+
+strong, b {
+  font-weight: $font-weight-bold;
+}
+
+em, i {
+  font-style: italic;
+}
+
+small {
+  font-size: font-size('sm');
+}
+
+// ============================================================================
+// LISTAS
+// ============================================================================
+
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// ============================================================================
+// IMÁGENES Y MEDIA
+// ============================================================================
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+img {
+  border-style: none;
+}
+
+// ============================================================================
+// FORMULARIOS
+// ============================================================================
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: 1.5;
+  margin: 0;
+}
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+
+button {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  &:focus {
+    outline: none;
+  }
+}
+
+// ============================================================================
+// TABLAS
+// ============================================================================
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+// ============================================================================
+// UTILIDADES DE ESPACIADO
+// ============================================================================
+
+// Margins
+@each $key, $value in $spacing {
+  .m-#{$key} { margin: $value !important; }
+  .mt-#{$key} { margin-top: $value !important; }
+  .mr-#{$key} { margin-right: $value !important; }
+  .mb-#{$key} { margin-bottom: $value !important; }
+  .ml-#{$key} { margin-left: $value !important; }
+  .mx-#{$key} {
+    margin-left: $value !important;
+    margin-right: $value !important;
+  }
+  .my-#{$key} {
+    margin-top: $value !important;
+    margin-bottom: $value !important;
+  }
+}
+
+// Paddings
+@each $key, $value in $spacing {
+  .p-#{$key} { padding: $value !important; }
+  .pt-#{$key} { padding-top: $value !important; }
+  .pr-#{$key} { padding-right: $value !important; }
+  .pb-#{$key} { padding-bottom: $value !important; }
+  .pl-#{$key} { padding-left: $value !important; }
+  .px-#{$key} {
+    padding-left: $value !important;
+    padding-right: $value !important;
+  }
+  .py-#{$key} {
+    padding-top: $value !important;
+    padding-bottom: $value !important;
+  }
+}
+
+// ============================================================================
+// UTILIDADES DE DISPLAY
+// ============================================================================
+
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+.d-inline { display: inline !important; }
+.d-inline-block { display: inline-block !important; }
+.d-flex { display: flex !important; }
+.d-inline-flex { display: inline-flex !important; }
+.d-grid { display: grid !important; }
+
+// Responsive display
+@include mobile-only {
+  .d-mobile-none { display: none !important; }
+  .d-mobile-block { display: block !important; }
+}
+
+@include tablet-up {
+  .d-tablet-none { display: none !important; }
+  .d-tablet-block { display: block !important; }
+}
+
+@include desktop-up {
+  .d-desktop-none { display: none !important; }
+  .d-desktop-block { display: block !important; }
+}
+
+// ============================================================================
+// UTILIDADES DE FLEXBOX
+// ============================================================================
+
+.flex-row { flex-direction: row !important; }
+.flex-column { flex-direction: column !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.flex-nowrap { flex-wrap: nowrap !important; }
+
+// Justify content
+.justify-start { justify-content: flex-start !important; }
+.justify-center { justify-content: center !important; }
+.justify-end { justify-content: flex-end !important; }
+.justify-between { justify-content: space-between !important; }
+.justify-around { justify-content: space-around !important; }
+
+// Align items
+.align-start { align-items: flex-start !important; }
+.align-center { align-items: center !important; }
+.align-end { align-items: flex-end !important; }
+.align-stretch { align-items: stretch !important; }
+
+// Gaps
+@each $key, $value in $spacing {
+  .gap-#{$key} { gap: $value !important; }
+  .gap-x-#{$key} { column-gap: $value !important; }
+  .gap-y-#{$key} { row-gap: $value !important; }
+}
+
+// ============================================================================
+// UTILIDADES DE TEXTO
+// ============================================================================
+
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-justify { text-align: justify !important; }
+
+.text-lowercase { text-transform: lowercase !important; }
+.text-uppercase { text-transform: uppercase !important; }
+.text-capitalize { text-transform: capitalize !important; }
+
+.text-truncate { @include text-truncate; }
+.text-truncate-2 { @include text-truncate-lines(2); }
+.text-truncate-3 { @include text-truncate-lines(3); }
+
+.text-bold { font-weight: $font-weight-bold !important; }
+.text-semibold { font-weight: $font-weight-semibold !important; }
+.text-medium { font-weight: $font-weight-medium !important; }
+.text-regular { font-weight: $font-weight-regular !important; }
+.text-light { font-weight: $font-weight-light !important; }
+
+// Tamaños de texto
+@each $key, $value in $font-sizes {
+  .text-#{$key} { font-size: $value !important; }
+}
+
+// Colores de texto
+.text-neutral-900 { color: $neutral-900 !important; }
+.text-neutral-800 { color: $neutral-800 !important; }
+.text-neutral-700 { color: $neutral-700 !important; }
+.text-neutral-600 { color: $neutral-600 !important; }
+.text-neutral-500 { color: $neutral-500 !important; }
+.text-neutral-400 { color: $neutral-400 !important; }
+
+.text-success { color: $success !important; }
+.text-warning { color: $warning !important; }
+.text-error { color: $error !important; }
+.text-info { color: $info !important; }
+
+// ============================================================================
+// UTILIDADES DE BORDER
+// ============================================================================
+
+.border-none { border: none !important; }
+.border { border: $border-width solid $neutral-300 !important; }
+.border-t { border-top: $border-width solid $neutral-300 !important; }
+.border-r { border-right: $border-width solid $neutral-300 !important; }
+.border-b { border-bottom: $border-width solid $neutral-300 !important; }
+.border-l { border-left: $border-width solid $neutral-300 !important; }
+
+// Border radius
+@each $key, $value in $border-radius {
+  .rounded-#{$key} { border-radius: $value !important; }
+}
+
+// ============================================================================
+// UTILIDADES DE BACKGROUND
+// ============================================================================
+
+.bg-white { background-color: $neutral-0 !important; }
+.bg-neutral-50 { background-color: $neutral-50 !important; }
+.bg-neutral-100 { background-color: $neutral-100 !important; }
+.bg-neutral-200 { background-color: $neutral-200 !important; }
+
+.bg-success-light { background-color: $success-lighter !important; }
+.bg-warning-light { background-color: $warning-lighter !important; }
+.bg-error-light { background-color: $error-lighter !important; }
+.bg-info-light { background-color: $info-lighter !important; }
+
+// ============================================================================
+// UTILIDADES DE SOMBRAS
+// ============================================================================
+
+@each $key, $value in $shadows {
+  .shadow-#{$key} { box-shadow: $value !important; }
+}
+
+// ============================================================================
+// UTILIDADES DE POSICIÓN
+// ============================================================================
+
+.position-static { position: static !important; }
+.position-relative { position: relative !important; }
+.position-absolute { position: absolute !important; }
+.position-fixed { position: fixed !important; }
+.position-sticky { position: sticky !important; }
+
+// ============================================================================
+// UTILIDADES DE WIDTH Y HEIGHT
+// ============================================================================
+
+.w-full { width: 100% !important; }
+.w-auto { width: auto !important; }
+.w-screen { width: 100vw !important; }
+
+.h-full { height: 100% !important; }
+.h-auto { height: auto !important; }
+.h-screen { height: 100vh !important; }
+
+.min-h-screen { min-height: 100vh !important; }
+
+// ============================================================================
+// UTILIDADES DE OVERFLOW
+// ============================================================================
+
+.overflow-auto { overflow: auto !important; }
+.overflow-hidden { overflow: hidden !important; }
+.overflow-visible { overflow: visible !important; }
+.overflow-scroll { overflow: scroll !important; }
+
+.overflow-x-auto { overflow-x: auto !important; }
+.overflow-y-auto { overflow-y: auto !important; }
+
+// ============================================================================
+// UTILIDADES DE Z-INDEX
+// ============================================================================
+
+@each $key, $value in $z-index {
+  .z-#{$key} { z-index: $value !important; }
+}
+
+// ============================================================================
+// UTILIDADES DE CURSOR
+// ============================================================================
+
+.cursor-pointer { cursor: pointer !important; }
+.cursor-default { cursor: default !important; }
+.cursor-not-allowed { cursor: not-allowed !important; }
+
+// ============================================================================
+// UTILIDADES DE OPACIDAD
+// ============================================================================
+
+.opacity-0 { opacity: 0 !important; }
+.opacity-25 { opacity: 0.25 !important; }
+.opacity-50 { opacity: 0.5 !important; }
+.opacity-75 { opacity: 0.75 !important; }
+.opacity-100 { opacity: 1 !important; }
+
+// ============================================================================
+// CONTENEDOR PRINCIPAL
+// ============================================================================
+
+.container {
+  @include container;
+}
+
+.container-fluid {
+  width: 100%;
+  padding-left: $container-padding;
+  padding-right: $container-padding;
+}
+
+// ============================================================================
+// CLASES DE ANIMACIÓN
+// ============================================================================
+
+.fade-in {
+  @include fade-in;
+}
+
+.slide-up {
+  @include slide-up;
+}
+
+.scale-in {
+  @include scale-in;
+}
+
+// ============================================================================
+// ACCESIBILIDAD
+// ============================================================================
+
+.sr-only {
+  @include visually-hidden;
+}
+
+// Focus visible para navegación con teclado
+*:focus-visible {
+  outline: 2px solid $primary-500;
+  outline-offset: 2px;
+}
+
+// ============================================================================
+// SCROLLBAR PERSONALIZADO
+// ============================================================================
+
+* {
+  @include custom-scrollbar;
+}
+
+// ============================================================================
+// LOADING STATES
+// ============================================================================
+
+.skeleton {
+  @include skeleton;
+}
+
+.loading-spinner {
+  border: 3px solid $neutral-200;
+  border-top-color: $primary-1000;
+  border-radius: radius('full');
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ============================================================================
+// PRINT STYLES
+// ============================================================================
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+  
+  img {
+    page-break-inside: avoid;
+  }
+  
+  p,
+  h2,
+  h3 {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}

@@ -8,21 +8,48 @@
  * Las credenciales sensibles (API keys de backend) están en Secret Manager.
  */
 
+export interface Environment {
+  production: boolean;
+  apiUrl: string;
+  firebase: {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+    measurementId: string;
+  };
+  stripe: {
+    publishableKey: string;
+  };
+  features: {
+    enableAnalytics: boolean;
+    enableServiceWorker: boolean;
+    enableOfflineMode: boolean;
+    enablePushNotifications: boolean;
+  };
+}
+
 export const environment = {
   production: false,
+  apiUrl: 'http://localhost:4200/api',
 
   // Configuración de Firebase
   // Obtén estos valores de: https://console.firebase.google.com/project/tepizon-web/settings/general
   firebase: {
-    apiKey: 'TU_API_KEY_AQUI', // Public API Key
-    authDomain: 'tepizon-web.firebaseapp.com',
-    projectId: 'tepizon-web',
-    storageBucket: 'tepizon-web.firebasestorage.app',
-    messagingSenderId: 'TU_MESSAGING_SENDER_ID',
-    appId: 'TU_APP_ID',
-    measurementId: 'TU_MEASUREMENT_ID', // Opcional para Analytics
+    apiKey: "AIzaSyCrqH9QpXOZ8lFy51yZCclcOeTJhkL1iok",
+    authDomain: "tepizon-web.firebaseapp.com",
+    projectId: "tepizon-web",
+    storageBucket: "tepizon-web.firebasestorage.app",
+    messagingSenderId: "356932896799",
+    appId: "1:356932896799:web:c6a71684633e2c3d01ad2a",
+    measurementId: "G-CY6YZ7L5V5"
   },
 
+  stripe: {
+    publishableKey: 'pk_live_51SH8VSPQvi6nXKP8zYycuoXDl3EE3HamSAMeu167QQWER2tC709tmeT3khsiJTeyWA56e7jVu4NTsyh1aTKC4h6N00cDUeHps2',
+  },
   // URLs de Cloud Functions
   cloudFunctionsBaseUrl: 'https://us-central1-tepizon-web.cloudfunctions.net',
 

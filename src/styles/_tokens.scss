@@ -1,0 +1,285 @@
+// ============================================================================
+// DESIGN TOKENS - TEPIZON PLATFORM
+// ============================================================================
+// Basado en StyleInspiration.pdf
+// Paleta de colores, tipografía Inter y sistema de diseño
+// ============================================================================
+
+// ============================================================================
+// TIPOGRAFÍA - INTER FONT FAMILY
+// ============================================================================
+
+$font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+                   Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+
+// Font Weights
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Font Sizes - Sistema escalable
+$font-size-base: 16px;
+
+$font-sizes: (
+  'xs': 0.75rem,      // 12px
+  'sm': 0.875rem,     // 14px
+  'base': 1rem,       // 16px
+  'lg': 1.125rem,     // 18px
+  'xl': 1.25rem,      // 20px
+  '2xl': 1.5rem,      // 24px
+  '3xl': 1.875rem,    // 30px
+  '4xl': 2.25rem,     // 36px
+  '5xl': 3rem,        // 48px
+  '6xl': 3.75rem,     // 60px
+);
+
+// Line Heights
+$line-heights: (
+  'tight': 1.25,
+  'normal': 1.5,
+  'relaxed': 1.75,
+  'loose': 2,
+);
+
+// ============================================================================
+// COLORES - NEUTRAL (Escala de grises)
+// ============================================================================
+
+$neutral-1000: #000000;  // AAA - Negro puro
+$neutral-900: #1A1A1A;   // AAA - Negro suave
+$neutral-800: #333333;   // AAA - Gris muy oscuro
+$neutral-700: #4D4D4D;   // AAA - Gris oscuro
+$neutral-600: #666666;   // AAA - Gris medio-oscuro
+$neutral-500: #808080;   // AA - Gris medio
+$neutral-400: #999999;   // AA - Gris medio-claro
+$neutral-300: #B3B3B3;   // Gris claro
+$neutral-200: #CCCCCC;   // Gris muy claro
+$neutral-100: #E6E6E6;   // Gris ultra claro
+$neutral-50: #F5F5F5;    // Casi blanco
+$neutral-0: #FFFFFF;     // Blanco puro
+
+// ============================================================================
+// PRIMARY COLOR (Verde oscuro - Color principal de marca)
+// ============================================================================
+
+$primary-1000: #00100D;  // Primary base del proyecto
+$primary-900: #001811;
+$primary-800: #002015;
+$primary-700: #002819;
+$primary-600: #00301D;
+$primary-500: #003821;   // Verde medio
+$primary-400: #004025;
+$primary-300: #336B4C;   // Verde suave
+$primary-200: #66967D;
+$primary-100: #99C1AE;
+$primary-50: #CCEBDF;
+
+// ============================================================================
+// SECONDARY COLOR 1 (Amarillo-verde - Acento cálido)
+// ============================================================================
+
+$secondary-1000: #485318; // Secondary base del proyecto
+$secondary-900: #5A6828;
+$secondary-800: #6C7D38;
+$secondary-700: #7E9248;
+$secondary-600: #90A758;
+$secondary-500: #A2BC68;  // Amarillo-verde medio
+$secondary-400: #B4D078;
+$secondary-300: #C6E588;
+$secondary-200: #D8FA98;
+$secondary-100: #E1FBA8;
+$secondary-50: #F0FCD4;
+
+// ============================================================================
+// SECONDARY COLOR 2 (Púrpura - Acento frío)
+// ============================================================================
+
+$accent-1000: #392855;    // Accent base del proyecto
+$accent-900: #4A3666;
+$accent-800: #5B4477;
+$accent-700: #6C5288;
+$accent-600: #7D6099;
+$accent-500: #8E6EAA;     // Púrpura medio
+$accent-400: #9F7CBB;
+$accent-300: #B08ACC;
+$accent-200: #C198DD;
+$accent-100: #D2A6EE;
+$accent-50: #E8D3F7;
+
+// ============================================================================
+// COLORES SEMÁNTICOS (Estados y feedback)
+// ============================================================================
+
+$success-dark: #00875A;
+$success: #36B37E;
+$success-light: #79F2C0;
+$success-lighter: #E3FCEF;
+
+$warning-dark: #FF8B00;
+$warning: #FFAB00;
+$warning-light: #FFE380;
+$warning-lighter: #FFFAE6;
+
+$error-dark: #DE350B;
+$error: #FF5630;
+$error-light: #FF8F73;
+$error-lighter: #FFEBE6;
+
+$info-dark: #0052CC;
+$info: #0065FF;
+$info-light: #4C9AFF;
+$info-lighter: #DEEBFF;
+
+// ============================================================================
+// ESPACIADO (Sistema 8px base)
+// ============================================================================
+
+$spacing-base: 8px;
+
+$spacing: (
+  '0': 0,
+  '1': $spacing-base * 0.5,   // 4px
+  '2': $spacing-base * 1,     // 8px
+  '3': $spacing-base * 1.5,   // 12px
+  '4': $spacing-base * 2,     // 16px
+  '5': $spacing-base * 2.5,   // 20px
+  '6': $spacing-base * 3,     // 24px
+  '8': $spacing-base * 4,     // 32px
+  '10': $spacing-base * 5,    // 40px
+  '12': $spacing-base * 6,    // 48px
+  '16': $spacing-base * 8,    // 64px
+  '20': $spacing-base * 10,   // 80px
+  '24': $spacing-base * 12,   // 96px
+  '32': $spacing-base * 16,   // 128px
+);
+
+// ============================================================================
+// BORDES Y RADIOS
+// ============================================================================
+
+$border-width: 1px;
+$border-width-thick: 2px;
+
+$border-radius: (
+  'none': 0,
+  'xs': 2px,
+  'sm': 4px,
+  'base': 8px,
+  'md': 12px,
+  'lg': 16px,
+  'xl': 24px,
+  '2xl': 32px,
+  'full': 9999px,
+);
+
+// ============================================================================
+// SOMBRAS (Elevaciones)
+// ============================================================================
+
+$shadows: (
+  'none': none,
+  'xs': 0 1px 2px 0 rgba(0, 0, 0, 0.05),
+  'sm': 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+  'base': 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06),
+  'md': 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05),
+  'lg': 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04),
+  'xl': 0 25px 50px -12px rgba(0, 0, 0, 0.25),
+  '2xl': 0 35px 60px -15px rgba(0, 0, 0, 0.3),
+);
+
+// ============================================================================
+// BREAKPOINTS (Mobile-first)
+// ============================================================================
+
+$breakpoints: (
+  'xs': 0,
+  'sm': 576px,   // Móviles grandes
+  'md': 768px,   // Tablets
+  'lg': 992px,   // Laptops
+  'xl': 1200px,  // Desktops
+  '2xl': 1400px, // Pantallas grandes
+);
+
+// ============================================================================
+// Z-INDEX (Capas de elementos)
+// ============================================================================
+
+$z-index: (
+  'dropdown': 1000,
+  'sticky': 1020,
+  'fixed': 1030,
+  'modal-backdrop': 1040,
+  'modal': 1050,
+  'popover': 1060,
+  'tooltip': 1070,
+);
+
+// ============================================================================
+// TRANSICIONES Y ANIMACIONES
+// ============================================================================
+
+$transition-speed-fast: 150ms;
+$transition-speed-base: 250ms;
+$transition-speed-slow: 350ms;
+$transition-speed-slower: 500ms;
+
+$transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+$transition-timing-in: cubic-bezier(0.4, 0, 1, 1);
+$transition-timing-out: cubic-bezier(0, 0, 0.2, 1);
+
+// ============================================================================
+// CONTENEDORES
+// ============================================================================
+
+$container-max-widths: (
+  'sm': 540px,
+  'md': 720px,
+  'lg': 960px,
+  'xl': 1140px,
+  '2xl': 1320px,
+);
+
+$container-padding: map-get($spacing, '4'); // 16px
+
+// ============================================================================
+// GRID SYSTEM
+// ============================================================================
+
+$grid-columns: 12;
+$grid-gutter: map-get($spacing, '6'); // 24px
+
+// ============================================================================
+// FUNCIONES HELPER
+// ============================================================================
+
+// Obtener valor de spacing
+@function spacing($key) {
+  @return map-get($spacing, $key);
+}
+
+// Obtener valor de font-size
+@function font-size($key) {
+  @return map-get($font-sizes, $key);
+}
+
+// Obtener valor de border-radius
+@function radius($key) {
+  @return map-get($border-radius, $key);
+}
+
+// Obtener valor de shadow
+@function shadow($key) {
+  @return map-get($shadows, $key);
+}
+
+// Obtener valor de breakpoint
+@function breakpoint($key) {
+  @return map-get($breakpoints, $key);
+}
+
+// Obtener valor de z-index
+@function z($key) {
+  @return map-get($z-index, $key);
+}

@@ -1,0 +1,551 @@
+// ============================================================================
+// MIXINS - TEPIZON PLATFORM
+// ============================================================================
+// Mixins reutilizables para responsive, tipografía, layout y más
+// ============================================================================
+
+@import 'tokens';
+
+// ============================================================================
+// RESPONSIVE BREAKPOINTS (Mobile-first)
+// ============================================================================
+
+// Media query mínimo (desde breakpoint hacia arriba)
+@mixin respond-above($breakpoint) {
+  $value: breakpoint($breakpoint);
+  @media (min-width: $value) {
+    @content;
+  }
+}
+
+// Media query máximo (desde breakpoint hacia abajo)
+@mixin respond-below($breakpoint) {
+  $value: breakpoint($breakpoint);
+  @media (max-width: ($value - 1px)) {
+    @content;
+  }
+}
+
+// Media query entre dos breakpoints
+@mixin respond-between($min, $max) {
+  $min-value: breakpoint($min);
+  $max-value: breakpoint($max);
+  @media (min-width: $min-value) and (max-width: ($max-value - 1px)) {
+    @content;
+  }
+}
+
+// Shortcuts comunes
+@mixin mobile-only {
+  @include respond-below('md') {
+    @content;
+  }
+}
+
+@mixin tablet-up {
+  @include respond-above('md') {
+    @content;
+  }
+}
+
+@mixin desktop-up {
+  @include respond-above('lg') {
+    @content;
+  }
+}
+
+// ============================================================================
+// TIPOGRAFÍA
+// ============================================================================
+
+// Aplicar fuente Inter con peso específico
+@mixin font-inter($weight: $font-weight-regular) {
+  font-family: $font-family-base;
+  font-weight: $weight;
+}
+
+// Heading styles predefinidos (basados en el PDF)
+@mixin heading-1 {
+  @include font-inter($font-weight-bold);
+  font-size: font-size('5xl');
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+@mixin heading-2 {
+  @include font-inter($font-weight-bold);
+  font-size: font-size('4xl');
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+@mixin heading-3 {
+  @include font-inter($font-weight-semibold);
+  font-size: font-size('3xl');
+  line-height: 1.3;
+}
+
+@mixin heading-4 {
+  @include font-inter($font-weight-semibold);
+  font-size: font-size('2xl');
+  line-height: 1.35;
+}
+
+@mixin heading-5 {
+  @include font-inter($font-weight-semibold);
+  font-size: font-size('xl');
+  line-height: 1.4;
+}
+
+@mixin heading-6 {
+  @include font-inter($font-weight-medium);
+  font-size: font-size('lg');
+  line-height: 1.5;
+}
+
+// Body text styles
+@mixin body-large {
+  @include font-inter($font-weight-regular);
+  font-size: font-size('lg');
+  line-height: 1.6;
+}
+
+@mixin body-base {
+  @include font-inter($font-weight-regular);
+  font-size: font-size('base');
+  line-height: 1.5;
+}
+
+@mixin body-small {
+  @include font-inter($font-weight-regular);
+  font-size: font-size('sm');
+  line-height: 1.5;
+}
+
+@mixin body-xs {
+  @include font-inter($font-weight-regular);
+  font-size: font-size('xs');
+  line-height: 1.4;
+}
+
+// Texto truncado con ellipsis
+@mixin text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Texto con múltiples líneas truncadas
+@mixin text-truncate-lines($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ============================================================================
+// FLEXBOX UTILITIES
+// ============================================================================
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-column-center {
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+}
+
+// ============================================================================
+// GRID UTILITIES
+// ============================================================================
+
+@mixin grid($columns: 12, $gap: $grid-gutter) {
+  display: grid;
+  grid-template-columns: repeat($columns, 1fr);
+  gap: $gap;
+}
+
+@mixin grid-responsive {
+  display: grid;
+  gap: spacing('4');
+  grid-template-columns: 1fr;
+  
+  @include respond-above('sm') {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @include respond-above('md') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  @include respond-above('lg') {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+// ============================================================================
+// CONTENEDORES
+// ============================================================================
+
+@mixin container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: $container-padding;
+  padding-right: $container-padding;
+  
+  @each $breakpoint, $width in $container-max-widths {
+    @include respond-above($breakpoint) {
+      max-width: $width;
+    }
+  }
+}
+
+// ============================================================================
+// BOTONES
+// ============================================================================
+
+@mixin button-base {
+  @include font-inter($font-weight-medium);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: radius('base');
+  cursor: pointer;
+  transition: all $transition-speed-base $transition-timing;
+  text-decoration: none;
+  outline: none;
+  user-select: none;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $primary-500;
+    outline-offset: 2px;
+  }
+}
+
+@mixin button-size($size: 'md') {
+  @if $size == 'sm' {
+    padding: spacing('2') spacing('3');
+    font-size: font-size('sm');
+    min-height: 32px;
+  } @else if $size == 'md' {
+    padding: spacing('3') spacing('4');
+    font-size: font-size('base');
+    min-height: 40px;
+  } @else if $size == 'lg' {
+    padding: spacing('4') spacing('6');
+    font-size: font-size('lg');
+    min-height: 48px;
+  }
+}
+
+@mixin button-primary {
+  @include button-base;
+  background-color: $primary-1000;
+  color: $neutral-0;
+  
+  &:hover:not(:disabled) {
+    background-color: $primary-800;
+    transform: translateY(-1px);
+    box-shadow: shadow('md');
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-secondary {
+  @include button-base;
+  background-color: $neutral-0;
+  color: $primary-1000;
+  border: $border-width solid $neutral-300;
+  
+  &:hover:not(:disabled) {
+    background-color: $neutral-50;
+    border-color: $primary-1000;
+  }
+}
+
+@mixin button-ghost {
+  @include button-base;
+  background-color: transparent;
+  color: $primary-1000;
+  
+  &:hover:not(:disabled) {
+    background-color: $neutral-50;
+  }
+}
+
+// ============================================================================
+// CARDS Y SUPERFICIES
+// ============================================================================
+
+@mixin card {
+  background-color: $neutral-0;
+  border-radius: radius('lg');
+  box-shadow: shadow('base');
+  padding: spacing('6');
+  transition: all $transition-speed-base $transition-timing;
+  
+  &:hover {
+    box-shadow: shadow('lg');
+    transform: translateY(-2px);
+  }
+}
+
+@mixin surface {
+  background-color: $neutral-0;
+  border-radius: radius('base');
+  padding: spacing('4');
+}
+
+// ============================================================================
+// INPUTS Y FORMULARIOS
+// ============================================================================
+
+@mixin input-base {
+  @include font-inter($font-weight-regular);
+  width: 100%;
+  padding: spacing('3') spacing('4');
+  font-size: font-size('base');
+  border: $border-width solid $neutral-300;
+  border-radius: radius('base');
+  background-color: $neutral-0;
+  color: $neutral-900;
+  transition: all $transition-speed-fast $transition-timing;
+  
+  &::placeholder {
+    color: $neutral-500;
+  }
+  
+  &:hover:not(:disabled) {
+    border-color: $neutral-400;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: $primary-500;
+    box-shadow: 0 0 0 3px rgba($primary-500, 0.1);
+  }
+  
+  &:disabled {
+    background-color: $neutral-50;
+    cursor: not-allowed;
+  }
+  
+  &.error {
+    border-color: $error;
+    
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($error, 0.1);
+    }
+  }
+}
+
+@mixin label {
+  @include font-inter($font-weight-medium);
+  display: block;
+  margin-bottom: spacing('2');
+  font-size: font-size('sm');
+  color: $neutral-800;
+}
+
+// ============================================================================
+// BADGES Y TAGS
+// ============================================================================
+
+@mixin badge($color: 'primary') {
+  @include font-inter($font-weight-medium);
+  display: inline-flex;
+  align-items: center;
+  padding: spacing('1') spacing('2');
+  font-size: font-size('xs');
+  border-radius: radius('full');
+  
+  @if $color == 'primary' {
+    background-color: $primary-100;
+    color: $primary-1000;
+  } @else if $color == 'success' {
+    background-color: $success-lighter;
+    color: $success-dark;
+  } @else if $color == 'warning' {
+    background-color: $warning-lighter;
+    color: $warning-dark;
+  } @else if $color == 'error' {
+    background-color: $error-lighter;
+    color: $error-dark;
+  } @else if $color == 'info' {
+    background-color: $info-lighter;
+    color: $info-dark;
+  }
+}
+
+// ============================================================================
+// ANIMACIONES
+// ============================================================================
+
+@mixin fade-in($duration: $transition-speed-base) {
+  animation: fadeIn $duration $transition-timing;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@mixin slide-up($duration: $transition-speed-base) {
+  animation: slideUp $duration $transition-timing;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@mixin scale-in($duration: $transition-speed-base) {
+  animation: scaleIn $duration $transition-timing;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// ============================================================================
+// UTILIDADES
+// ============================================================================
+
+// Ocultar visualmente pero mantener accesibilidad
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+// Limpiar floats
+@mixin clearfix {
+  &::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+}
+
+// Aspect ratio
+@mixin aspect-ratio($width, $height) {
+  position: relative;
+  
+  &::before {
+    content: '';
+    display: block;
+    padding-top: ($height / $width) * 100%;
+  }
+  
+  > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+// Scroll personalizado
+@mixin custom-scrollbar($width: 8px, $track-color: $neutral-100, $thumb-color: $neutral-400) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: radius('full');
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: radius('full');
+    
+    &:hover {
+      background: darken($thumb-color, 10%);
+    }
+  }
+}
+
+// Skeleton loading
+@mixin skeleton {
+  background: linear-gradient(
+    90deg,
+    $neutral-200 0%,
+    $neutral-100 50%,
+    $neutral-200 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: radius('base');
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
